@@ -1,4 +1,4 @@
-Country Name,Country Code,Series Name,Series Code,1965 [YR1965],1970 [YR1970],1975 [YR1975],1980 [YR1980],1985 [YR1985],1990 [YR1990],1995 [YR1995],2000 [YR2000],2005 [YR2005],2010 [YR2010],2015 [YR2015],2020 [YR2020],2021 [YR2021],2022 [YR2022]
+CountryName,CountryCode,SeriesName,SeriesCode,1965,1970,1975,1980,1985,1990,1995,2000,2005,2010,2015,2020,2021,2022
 American Samoa,ASM,"Birth rate, crude (per 1,000 people)",SP.DYN.CBRT.IN,..,..,..,..,..,..,..,..,..,18.7,..,12.7,..,13.8
 American Samoa,ASM,"Death rate, crude (per 1,000 people)",SP.DYN.CDRT.IN,..,..,..,..,..,..,..,..,..,..,..,5.6,..,7.8
 American Samoa,ASM,Net migration,SM.POP.NETM,-90,-308,-249,115,351,-251,-419,-1158,-1697,-1475,-1629,-1636,-1646,-810
