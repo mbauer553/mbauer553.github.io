@@ -6,6 +6,7 @@
             }
             .controls {
                 margin: 0.5%;
+                text-align: center;
             }
             .center-text {
                 text-align: center;
@@ -18,27 +19,33 @@
                 height: 80%;
             }
             .graph-container {
-                border: solid #4d4d4d;
+                border-right: solid #4d4d4d;
                 float: left;
                 width: 66%;
                 height: 100%;
             }
             .scene-context {
-                border: solid #4d4d4d;
+                width: 99.5%;
+                position: relative;
+                left: 0.5%;
                 flex-grow: 1;
                 height: 100%;
             }
         </style>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha512-vc58qvvBdrDR4etbxMdlTt4GBQk1qjvyORR2nrsPsFPyrs+/u5c3+1Ct6upOgdZoIl7eq6k3a1UPDSNAQi/32A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         <script>
-            let data;
-            let currSceneIndex = 0;
             const usCode = 'USA';
             const birthRateCode = 'SP.DYN.CBRT.IN';
             const deathRateCode = 'SP.DYN.CDRT.IN';
             const migrationCode = 'SM.POP.NETM';
             const populationGrowthCode = 'SP.POP.GROW';
-            const graphId = '#graph';
+            const strokeWidth = 1.5;
+            const backId = '#back';
+            const nextId = '#next';
+            const sceneTextContentId = '#scene-text-content';
+            const selectContainerId = '#selectContainer';
+            const countrySelectId = '#countrySelect';
+            const codeSelectId = '#codeSelect';
             const years = [
                 1965,
                 1970,
@@ -55,6 +62,9 @@
                 2021,
                 2022,
             ];
+
+            let data;
+            let currSceneIndex = 0;
 
             async function getData() {
                 return d3.csv('https://raw.githubusercontent.com/mbauer553/mbauer553.github.io/main/data.csv');
@@ -82,10 +92,9 @@
                 }
             }
 
-            function loadScene(sceneIndex){
-                let graphSelect = d3.select(graphId);
-                graphSelect.html = "";
-
+            function updateSceneThree() {
+                let graphSelect = d3.select('#graph');
+                graphSelect.html('');
                 graphSelect
                 .append('svg')
                 .attr('height', '100%')
@@ -94,38 +103,217 @@
 
                 let boundingRect = graphSelect.node().getBoundingClientRect();
 
-                let margin = boundingRect.height * .1;
+                let margin = boundingRect.height * .125;
                 let graphHeight = boundingRect.height - margin;
                 let x = d3.scaleTime().domain([new Date(String(`${years[0]}-01-01`)), new Date(String(`${years[years.length-1]}-01-01`))]).range([0, boundingRect.width-2*margin]);
 
-                graphSelect.select('svg')
+                let svgSelect = graphSelect.select('svg');
+
+                svgSelect
                 .append('g')
                 .attr('transform', `translate(${margin}, ${graphHeight})`)
                 .call(d3.axisBottom(x));
 
                 let maxY;
+                let y;
 
-                switch (sceneIndex) {
-                    case 0:
-                        let usBirthRateData = parseDataForVis(data, usCode, birthRateCode);
-                        let usDeathRateData = parseDataForVis(data, usCode, deathRateCode);
-                        console.log(usBirthRateData);
-                        console.log(usDeathRateData);
-                        maxY = Math.ceil(Math.max(...usBirthRateData.valueByYear.concat(usDeathRateData.valueByYear).map((vby)=>vby.value)));
-                    default:
-                        break;
+                let sceneData = parseDataForVis(
+                    data,
+                    d3.select(countrySelectId).node().value,
+                    d3.select(codeSelectId).node().value
+                );
+
+                maxY = Math.max(...sceneData.valueByYear.map((vby)=>vby.value));
+                minY = Math.min(...sceneData.valueByYear.map((vby)=>vby.value));
+                y = d3.scaleLinear().domain([minY, maxY]).range([graphHeight-margin, 0]);
+
+                let lineColor;
+                if(d3.select(codeSelectId).node().value == deathRateCode){
+                    lineColor = 'orange'
+                } else {
+                    lineColor = 'steelblue'
                 }
 
-                let y = d3.scaleLinear().domain([0, maxY]).range([graphHeight-margin, 0]);
-                graphSelect.select('svg')
+                svgSelect.append('path')
+                .datum(sceneData.valueByYear)
+                .attr('transform', `translate(${margin}, ${margin})`)
+                .attr('fill', 'none')
+                .attr('stroke', lineColor)
+                .attr('stroke-width', strokeWidth)
+                .attr(
+                    'd',
+                    d3.line()
+                    .x((vby) => x(new Date(String(`${vby.year}-01-01`))))
+                    .y((vby) => y(vby.value))
+                );
+
+                svgSelect
                 .append('g')
                 .attr('transform', `translate(${margin}, ${margin})`)
                 .call(d3.axisLeft(y));
+            }
 
+            function loadScene(sceneIndex){
+                let graphSelect = d3.select('#graph');
+
+                let selectContainer = d3.select(selectContainerId);
+
+                if(sceneIndex == 0){
+                    d3.select(backId).attr('disabled', 'true');
+                } else {
+                    d3.select(backId).attr('disabled', null);
+                }
+
+                if(sceneIndex == 3){
+                    d3.select(nextId).attr('disabled', 'true');
+                    selectContainer.style('visibility', 'visible');
+                    d3.select(sceneTextContentId).text("Now that we have looked at these statistics for the US, please some other countries for your own context!");
+                } else {
+                    d3.select(nextId).attr('disabled', null);
+                    selectContainer.style('visibility', 'hidden');
+                    graphSelect.html('');
+
+                    graphSelect
+                    .append('svg')
+                    .attr('height', '100%')
+                    .attr('width', '100%')
+                    .attr('id', 'graph-svg');
+
+                    let boundingRect = graphSelect.node().getBoundingClientRect();
+
+                    let margin = boundingRect.height * .125;
+                    let graphHeight = boundingRect.height - margin;
+                    let x = d3.scaleTime().domain([new Date(String(`${years[0]}-01-01`)), new Date(String(`${years[years.length-1]}-01-01`))]).range([0, boundingRect.width-2*margin]);
+
+                    let svgSelect = graphSelect.select('svg');
+
+                    svgSelect
+                    .append('g')
+                    .attr('transform', `translate(${margin}, ${graphHeight})`)
+                    .call(d3.axisBottom(x));
+                    let maxY;
+                    let y;
+
+                    switch (sceneIndex) {
+                        case 0:
+                            let usBirthRateData = parseDataForVis(data, usCode, birthRateCode);
+                            let usDeathRateData = parseDataForVis(data, usCode, deathRateCode);
+
+                            maxY = Math.ceil(Math.max(...usBirthRateData.valueByYear.concat(usDeathRateData.valueByYear).map((vby)=>vby.value)));
+                            y = d3.scaleLinear().domain([0, maxY]).range([graphHeight-margin, 0]);
+
+                            svgSelect.append('path')
+                            .datum(usBirthRateData.valueByYear)
+                            .attr('transform', `translate(${margin}, ${margin})`)
+                            .attr('fill', 'none')
+                            .attr('stroke', 'steelblue')
+                            .attr('stroke-width', strokeWidth)
+                            .attr(
+                                'd',
+                                d3.line()
+                                .x((vby) => x(new Date(String(`${vby.year}-01-01`))))
+                                .y((vby) => y(vby.value))
+                            );
+
+                            svgSelect.append('path')
+                            .datum(usDeathRateData.valueByYear)
+                            .attr('transform', `translate(${margin}, ${margin})`)
+                            .attr('fill', 'none')
+                            .attr('stroke', 'orange')
+                            .attr('stroke-width', strokeWidth)
+                            .attr(
+                                'd',
+                                d3.line()
+                                .x((vby) => x(new Date(String(`${vby.year}-01-01`))))
+                                .y((vby) => y(vby.value))
+                            );
+                            d3.select(sceneTextContentId).text("A country's population growth is of importance, because as populations age, it is important to have enough individuals in the next generation to support the needs of those in the previous one.  We will first take a look at a few visuals to show relevant data on this topic for the United States.  Starting off, in blue we see the US birth rate over time, and in orange, we see the death rate.  Both numbers are per 1000 people.  ");
+                            break;
+                        case 1:
+                            let usNetMigrationData = parseDataForVis(data, usCode, migrationCode);
+                            maxY = Math.max(...usNetMigrationData.valueByYear.map((vby)=>vby.value));
+                            y = d3.scaleLinear().domain([0, maxY]).range([graphHeight-margin, 0]);
+
+                            svgSelect.append('path')
+                            .datum(usNetMigrationData.valueByYear)
+                            .attr('transform', `translate(${margin}, ${margin})`)
+                            .attr('fill', 'none')
+                            .attr('stroke', 'steelblue')
+                            .attr('stroke-width', strokeWidth)
+                            .attr(
+                                'd',
+                                d3.line()
+                                .x((vby) => x(new Date(String(`${vby.year}-01-01`))))
+                                .y((vby) => y(vby.value))
+                            );
+                            d3.select(sceneTextContentId).text("Next, we observe the net migration of people into the United States in number of people.  ");
+                            break;
+                        case 2:
+                            let usPopulationGrowthData = parseDataForVis(data, usCode, populationGrowthCode);
+                            maxY = Math.max(...usPopulationGrowthData.valueByYear.map((vby)=>vby.value));
+
+                            y = d3.scaleLinear().domain([0, maxY]).range([graphHeight-margin, 0]);
+
+                            svgSelect.append('path')
+                            .datum(usPopulationGrowthData.valueByYear)
+                            .attr('transform', `translate(${margin}, ${margin})`)
+                            .attr('fill', 'none')
+                            .attr('stroke', 'steelblue')
+                            .attr('stroke-width', strokeWidth)
+                            .attr(
+                                'd',
+                                d3.line()
+                                .x((vby) => x(new Date(String(`${vby.year}-01-01`))))
+                                .y((vby) => y(vby.value))
+                            );
+
+                            d3.select(sceneTextContentId).text("What the information that the previous two graphs influence is this population growth, shown as a percentage of the total population.  ");
+
+                            break;
+                        default:
+                            console.log('Something went wrong...');
+                            break;
+                    }
+
+                    svgSelect
+                    .append('g')
+                    .attr('transform', `translate(${margin}, ${margin})`)
+                    .call(d3.axisLeft(y));
+                }
             }
 
             async function initialize() {
                 data = await getData();
+                d3.select(nextId).on('click', function(){
+                    currSceneIndex = currSceneIndex + 1;
+                    loadScene(currSceneIndex);
+                });
+                d3.select(backId).on('click', function(){
+                    currSceneIndex = currSceneIndex - 1;
+                    loadScene(currSceneIndex);
+                })
+
+                let uniqueCountryObj = {};
+                data.forEach(
+                    function(d){
+                        uniqueCountryObj[d.CountryCode] = d.CountryName
+                    }
+                );
+
+                d3.select(countrySelectId)
+                .selectAll('option')
+                .data(Object.keys(uniqueCountryObj))
+                .enter()
+                .append('option')
+                .attr('value', (d) => d)
+                .text((d) => uniqueCountryObj[d]);
+
+                d3.select(countrySelectId)
+                .selectAll('option')
+                .filter(function(){
+                    return d3.select(this).attr('value') == usCode
+                }).attr('selected', 'true');
+
                 loadScene(currSceneIndex);
             }
             window.onload = initialize;
@@ -144,12 +332,22 @@
         </div>
         <div class="scene-container">
             <div id="graph" class="graph-container"></div>
-            <div class="scene-context center-text">
+            <div class="scene-context">
                 <div class="controls">
-                    <div id="countrySelectContainer"></div>
+                    <div id="selectContainer">
+                        Statistic: 
+                        <select id="codeSelect" onchange="updateSceneThree();">
+                            <option value="SP.DYN.CBRT.IN">Birth Rate</option>
+                            <option value="SP.DYN.CDRT.IN">Death Rate</option>
+                            <option value="SM.POP.NETM">Net Migration</option>
+                            <option selected value="SP.POP.GROW">Population Growth</option>
+                        </select>
+                        Country: 
+                        <select id="countrySelect" onchange="updateSceneThree();"></select>
+                    </div>
                     <div><button id="back">Back</button><button id="next">Next</button></div>
                 </div>
-                <div><p>Lorem Ipsum etc.</p></div>
+                <div><p id="scene-text-content"></p></div>
             </div>
         </div>
     </body>
