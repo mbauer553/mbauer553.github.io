@@ -1,12 +1,135 @@
 <html>
     <head>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha512-vc58qvvBdrDR4etbxMdlTt4GBQk1qjvyORR2nrsPsFPyrs+/u5c3+1Ct6upOgdZoIl7eq6k3a1UPDSNAQi/32A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         <style>
+            button {
+                margin: 0.5%;
+            }
+            .controls {
+                margin: 0.5%;
+            }
             .center-text {
                 text-align: center;
+                color: #4d4d4d;
+            }
+            .scene-container {
+                margin: auto;
+                border: solid #4d4d4d;
+                width: 90%;
+                height: 80%;
+            }
+            .graph-container {
+                border: solid #4d4d4d;
+                float: left;
+                width: 66%;
+                height: 100%;
+            }
+            .scene-context {
+                border: solid #4d4d4d;
+                flex-grow: 1;
+                height: 100%;
+            }
+        </style>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha512-vc58qvvBdrDR4etbxMdlTt4GBQk1qjvyORR2nrsPsFPyrs+/u5c3+1Ct6upOgdZoIl7eq6k3a1UPDSNAQi/32A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script>
+            let data;
+            let currSceneIndex = 0;
+            const usCode = 'USA';
+            const birthRateCode = 'SP.DYN.CBRT.IN';
+            const deathRateCode = 'SP.DYN.CDRT.IN';
+            const migrationCode = 'SM.POP.NETM';
+            const populationGrowthCode = 'SP.POP.GROW';
+            const graphId = '#graph';
+            const years = [
+                1965,
+                1970,
+                1975,
+                1980,
+                1985,
+                1990,
+                1995,
+                2000,
+                2005,
+                2010,
+                2015,
+                2020,
+                2021,
+                2022,
+            ];
+
+            async function getData() {
+                return d3.csv('https://raw.githubusercontent.com/mbauer553/mbauer553.github.io/main/data.csv');
             }
             
-        </style>
+            function parseDataForVis(data, countryCode, seriesCode) {
+                let dataObj = data.find(d => d.CountryCode == countryCode && d.SeriesCode == seriesCode)
+                let valuesByYear = [];
+                years.forEach((year) => {
+                    let dataForYear = dataObj[String(year)];
+                    if(dataForYear != '..'){
+                        valuesByYear.push({
+                            year,
+                            value: Number(dataForYear)
+                        })
+                    }
+                }
+                );
+                return {
+                    countryCode: dataObj.CountryCode,
+                    countryName: dataObj.CountryName,
+                    seriesName: dataObj.SeriesName,
+                    seriesCode: dataObj.SeriesCode,
+                    valueByYear: valuesByYear,
+                }
+            }
+
+            function loadScene(sceneIndex){
+                let graphSelect = d3.select(graphId);
+                graphSelect.html = "";
+
+                graphSelect
+                .append('svg')
+                .attr('height', '100%')
+                .attr('width', '100%')
+                .attr('id', 'graph-svg');
+
+                let boundingRect = graphSelect.node().getBoundingClientRect();
+
+                let margin = boundingRect.height * .1;
+                let graphHeight = boundingRect.height - margin;
+                let x = d3.scaleTime().domain([new Date(String(`${years[0]}-01-01`)), new Date(String(`${years[years.length-1]}-01-01`))]).range([0, boundingRect.width-2*margin]);
+
+                graphSelect.select('svg')
+                .append('g')
+                .attr('transform', `translate(${margin}, ${graphHeight})`)
+                .call(d3.axisBottom(x));
+
+                let maxY;
+
+                switch (sceneIndex) {
+                    case 0:
+                        let usBirthRateData = parseDataForVis(data, usCode, birthRateCode);
+                        let usDeathRateData = parseDataForVis(data, usCode, deathRateCode);
+                        console.log(usBirthRateData);
+                        console.log(usDeathRateData);
+                        maxY = Math.ceil(Math.max(...usBirthRateData.valueByYear.concat(usDeathRateData.valueByYear).map((vby)=>vby.value)));
+                    default:
+                        break;
+                }
+
+                let y = d3.scaleLinear().domain([0, maxY]).range([graphHeight-margin, 0]);
+                graphSelect.select('svg')
+                .append('g')
+                .attr('transform', `translate(${margin}, ${margin})`)
+                .call(d3.axisLeft(y));
+
+            }
+
+            async function initialize() {
+                data = await getData();
+                loadScene(currSceneIndex);
+            }
+            window.onload = initialize;
+        </script>
     </head>
     <body>
         <div>
@@ -19,6 +142,15 @@
                 Last Updated: 06/28/2024 
             </p>
         </div>
-        <div></div>
+        <div class="scene-container">
+            <div id="graph" class="graph-container"></div>
+            <div class="scene-context center-text">
+                <div class="controls">
+                    <div id="countrySelectContainer"></div>
+                    <div><button id="back">Back</button><button id="next">Next</button></div>
+                </div>
+                <div><p>Lorem Ipsum etc.</p></div>
+            </div>
+        </div>
     </body>
 </html>
